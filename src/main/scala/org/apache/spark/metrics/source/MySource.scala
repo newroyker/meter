@@ -3,21 +3,18 @@ package org.apache.spark.metrics.source
 import com.codahale.metrics.{Counter, Histogram, MetricRegistry}
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.util.Utils
 
 class MySource extends Source {
-  override def sourceName: String = "MySource"
+  override val sourceName: String = "MySource"
 
-  override def metricRegistry: MetricRegistry = new MetricRegistry
+  override val metricRegistry: MetricRegistry = new MetricRegistry
 
   val FOO: Histogram = metricRegistry.histogram(MetricRegistry.name("fooHistory"))
   val FOO_COUNTER: Counter = metricRegistry.counter(MetricRegistry.name("fooCounter"))
-  metricRegistry.register("FooParsed", FOO)
-  metricRegistry.register("FooCounter", FOO_COUNTER)
 }
 
 object MySourceDemo extends App {
-  implicit val spark: SparkSession = SparkSession
+  /*val spark: SparkSession = SparkSession
     .builder
     .master("local[*]")
     .appName("MySourceDemo")
@@ -26,13 +23,19 @@ object MySourceDemo extends App {
     .config("spark.metrics.conf.*.source.mysource.class", "org.apache.spark.metrics.source.MySource")
     .getOrCreate()
 
-  println(s"### Class can be found: ${Utils.classForName("org.apache.spark.metrics.source.MySource")}")
+  val source: MySource = SparkEnv.get.metricsSystem.getSourcesByName("MySource").head.asInstanceOf[MySource]*/
 
-  spark.sparkContext.setLogLevel("ERROR")
+  val spark: SparkSession = SparkSession
+    .builder
+    .master("local[*]")
+    .appName("MySourceDemo")
+    .config("spark.driver.host", "localhost")
+    .config("spark.metrics.conf.*.sink.console.class", "org.apache.spark.metrics.sink.ConsoleSink")
+    .getOrCreate()
 
-  SparkEnv.get.metricsSystem.getSourcesByName("MySource")
+  val source: MySource = new MySource
 
-  val source: MySource = SparkEnv.get.metricsSystem.getSourcesByName("MySource").head.asInstanceOf[MySource]
+  SparkEnv.get.metricsSystem.registerSource(source)
 
   (1 to 100).foreach(_ => source.FOO.update(1L))
 
